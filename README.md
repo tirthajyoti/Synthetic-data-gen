@@ -11,7 +11,7 @@ Read my article on Medium **"[Synthetic data generation — a must-have skill fo
 * [Synthesizing time series](https://github.com/tirthajyoti/Synthetic-data-gen/blob/master/Notebooks/Synth_Time_series.ipynb)
 * [Generating Gaussian mixture model data](https://github.com/tirthajyoti/Synthetic-data-gen/blob/master/Notebooks/GMM_generator.ipynb)
 
-## What is synthetic dataset
+## What is a synthetic dataset?
 As the name suggests, quite obviously, a synthetic dataset is a repository of data that is generated programmatically. So, it is not collected by any real-life survey or experiment. Its main purpose, therefore, is **to be flexible and rich enough to help an ML practitioner conduct fascinating experiments with various classification, regression, and clustering algorithms**. Desired properties are,
 
 * It can be numerical, binary, or categorical (ordinal or non-ordinal),
