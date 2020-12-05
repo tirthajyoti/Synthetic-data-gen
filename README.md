@@ -3,6 +3,8 @@ Various methods for generating synthetic data for data science and ML.
 
 Read my article on Medium **"[Synthetic data generation — a must-have skill for new data scientists](https://towardsdatascience.com/synthetic-data-generation-a-must-have-skill-for-new-data-scientists-915896c0c1ae)"**
 
+Also, a related article on generating random variables from scratch: **"[How to generate random variables from scratch (no library used](https://towardsdatascience.com/how-to-generate-random-variables-from-scratch-no-library-used-4b71eb3c8dc7)"**
+
 ---
 ## Notebooks
 
