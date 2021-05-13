@@ -84,7 +84,9 @@ class SyntheticTS:
         else:
             return self.normal_data
 
-    def anomalize(self, anomaly_frac=0.02, anomaly_scale=1.0, return_df=True):
+    def anomalize(
+        self, anomaly_frac=0.02, anomaly_scale=1.0, one_sided=False, return_df=True
+    ):
         """
         Induces anomalies in the normal process
 
@@ -92,6 +94,9 @@ class SyntheticTS:
         anomaly_frac (float): Fraction of anomalies
         anomaly_scale (float): Scale factor of anomalies. The range of the normal data will be scaled by this factor to inject anomalies.
         Any positive number is accepted but a number > 1.0 is needed to create meaningful anomalies/outliers.
+        one_sided (bool): Indicates whether the anomalies/outliers are one-sided in magnitude
+        i.e. they are mostly higher in magnitude than the normal process data. Default=False
+        i.e. outliers appear in both smaller and larger magnitude compared to the normal process data.
 
         Returns:
             Pandas DataFrame: If `return_df=True` returns a dataframe with two columns -
@@ -113,10 +118,15 @@ class SyntheticTS:
         no_anomalies = int(self._size_ * anomaly_frac)
         idx_list = np.random.choice(a=self._size_, size=no_anomalies, replace=False)
         for idx in idx_list:
-            new_arr[idx] = self.loc + np.random.uniform(
-                low=-anomaly_scale * (arr_max - arr_min),
-                high=anomaly_scale * (arr_max - arr_min),
-            )
+            if one_sided:
+                new_arr[idx] = self.loc + np.random.uniform(
+                    low=arr_min, high=anomaly_scale * (arr_max - arr_min)
+                )
+            else:
+                new_arr[idx] = self.loc + np.random.uniform(
+                    low=-anomaly_scale * (arr_max - arr_min),
+                    high=anomaly_scale * (arr_max - arr_min),
+                )
         self.anomalized_data = new_arr
         self._anomaly_flag_ = True
 
@@ -127,6 +137,94 @@ class SyntheticTS:
             return df
         else:
             return self.anomalized_data
+
+    def _chunk(self, arr, num_chunk, chunk_size, ano_scale, one_sided):
+        m = arr.mean()
+        a_max = arr.max()
+        a_min = arr.min()
+        idx_chunks = []
+        data_chunks = []
+        idx_a = np.arange(len(arr))
+        div = int(len(arr) / (num_chunk))
+        for i in range(0, len(arr), div):
+            idx_chunks.append(idx_a[i : i + div])
+        for idx in idx_chunks[:-1]:
+            tmpa = arr[idx]
+            mid = int(len(tmpa) / 2)
+            for j in range(mid - int(chunk_size / 2), mid + int(chunk_size / 2) + 1):
+                if one_sided:
+                    tmpa[j] = m + np.random.uniform(
+                        low=a_min, high=ano_scale * (a_max - a_min)
+                    )
+                else:
+                    tmpa[j] = m + np.random.uniform(
+                        low=-ano_scale * (a_max - a_min),
+                        high=ano_scale * (a_max - a_min),
+                    )
+            data_chunks.append(tmpa)
+        a1 = np.array([])
+        for d in data_chunks:
+            a1 = np.append(a1, d)
+        return a1
+
+    def chunk_anomalize(
+        self,
+        num_chunks=2,
+        anomaly_frac=0.02,
+        anomaly_scale=1.0,
+        one_sided=False,
+        return_df=True,
+    ):
+        """
+        Induces anomaly chunks in the normal process data
+
+        Args:
+        num_chunks (int): Number of chunked (grouped) anomalies
+        anomaly_frac (float): Fraction of anomalies
+        anomaly_scale (float): Scale factor of anomalies. The range of the normal data will be scaled by this factor to inject anomalies.
+        Any positive number is accepted but a number > 1.0 is needed to create meaningful anomalies/outliers.
+        one_sided (bool): Indicates whether the anomalies/outliers are one-sided in magnitude
+        i.e. they are mostly higher in magnitude than the normal process data. Default=False
+        i.e. outliers appear in both smaller and larger magnitude compared to the normal process data.
+
+        Returns:
+            Pandas DataFrame: If `return_df=True` returns a dataframe with two columns -
+            `time` with the datetime values, `anomaly_data` with the anomalized data
+            numpy.ndarray: If `return_df=False` returns just the array of the anomalized data
+        """
+        if not self._normal_flag_:
+            print("Normal process is not initialized. Cannot anomalize")
+            return None
+        assert isinstance(num_chunks, int) and num_chunks > 0, print(
+            "Number of chunks must be a positive integer"
+        )
+        assert anomaly_frac > 0 and anomaly_frac < 1.0, print(
+            "Anomaly fraction must be between 0.0 and 1.0"
+        )
+        assert anomaly_scale > 0, print(
+            "Anomaly scale must be a number gerater than 0.0"
+        )
+        no_anomalies = int(self._size_ * anomaly_frac)
+        no_anomalies_chunk = int(no_anomalies / num_chunks)
+        anomalies_last_chunk = no_anomalies - (no_anomalies_chunk * num_chunks)
+        new_arr = self.normal_data.copy()
+        new_arr = self._chunk(
+            arr=new_arr,
+            num_chunk=num_chunks,
+            chunk_size=no_anomalies_chunk,
+            ano_scale=anomaly_scale,
+            one_sided=one_sided,
+        )
+        self.chunk_anomaly_data = new_arr
+        self._anomaly_flag_ = True
+
+        if return_df:
+            df = pd.DataFrame(
+                {"time": self.time_arr, "anomaly_data": self.chunk_anomaly_data}
+            )
+            return df
+        else:
+            return self.chunk_anomaly_data
 
     def drift(
         self, pct_drift_mean=20.0, pct_drift_spread=0.0, time_drift=None, return_df=True
